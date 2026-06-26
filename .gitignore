@@ -1,2 +1,7 @@
 /target
+/fuzz/target
 /.idea
+/fuzz/artifacts
+/fuzz/corpus
+/coverage
+/fuzz/Cargo.lock

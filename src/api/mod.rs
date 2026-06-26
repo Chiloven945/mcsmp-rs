@@ -1,7 +1,16 @@
 //! Strongly typed official MCSMP API groups.
 //!
-//! Every handle is inexpensive to clone because it holds a clone of the
-//! underlying [`crate::Client`].
+//! Each handle maps one official `minecraft:*` namespace to idiomatic async
+//! Rust methods. Obtain a handle from [`crate::Client`]; doing so is
+//! synchronous and inexpensive because the handle only clones shared client
+//! state. Awaiting a method sends one JSON-RPC request over the client's active
+//! session.
+//!
+//! Collection mutations return the server's resulting collection snapshot where
+//! the protocol provides one. This keeps callers from guessing how the server
+//! resolved selectors, deduplicated entries, or applied defaults. Use
+//! [`RawApi`] for extension namespaces or newer methods that do not yet have a
+//! typed handle.
 
 mod allowlist;
 mod bans;
@@ -23,8 +32,8 @@ pub use raw::RawApi;
 pub use server::ServerApi;
 pub use server_settings::ServerSettingsApi;
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::{Client, Error, Result};

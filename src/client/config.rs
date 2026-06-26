@@ -1,11 +1,15 @@
-//! Builder and immutable connection configuration.
+//! Fluent client construction and validated connection configuration.
+//!
+//! `ClientBuilder` collects all user-configurable connection options before a
+//! WebSocket is opened. Validation happens in [`ClientBuilder::connect`], so
+//! a builder can be freely composed and cloned without performing I/O.
 
 use std::time::Duration;
 
 use url::Url;
 
 use crate::capability::CompatibilityMode;
-use crate::transport::{open_socket, WebSocketConfig};
+use crate::transport::{WebSocketConfig, open_socket};
 use crate::{Auth, Error, ReconnectPolicy, Result};
 
 use super::Client;
@@ -13,7 +17,19 @@ use super::Client;
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_CHANNEL_CAPACITY: usize = 128;
 
-/// Builder for a [`Client`].
+/// Fluent builder for a [`Client`] connection.
+///
+/// Defaults are intentionally conservative:
+///
+/// - a ten-second JSON-RPC response timeout;
+/// - a request writer queue capacity of 128;
+/// - [`crate::CompatibilityMode::Compatible`]; and
+/// - [`crate::ReconnectPolicy::Never`].
+///
+/// Authentication has no implicit default. Calling [`Self::connect`] without
+/// [`Self::auth`] returns [`crate::Error::AuthenticationNotConfigured`], which
+/// prevents accidentally sending management traffic without a deliberate
+/// credential decision.
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
     endpoint: Url,
@@ -27,6 +43,12 @@ pub struct ClientBuilder {
 
 impl ClientBuilder {
     /// Creates a builder targeting an MCSMP WebSocket endpoint.
+    ///
+    /// This function does not validate or connect immediately. Validation is
+    /// deferred until [`Self::connect`]. The endpoint must ultimately use
+    /// `ws://` or `wss://` and contain a host; a normal deployment should use
+    /// `wss://` so that the management secret and JSON-RPC payloads are
+    /// protected in transit.
     pub fn new(endpoint: Url) -> Self {
         Self {
             endpoint,
@@ -39,38 +61,92 @@ impl ClientBuilder {
         }
     }
 
-    /// Sets handshake authentication.
+    /// Sets the authentication form used during the WebSocket handshake.
+    ///
+    /// Native applications should normally choose [`crate::Auth::bearer`],
+    /// which emits `Authorization: Bearer <secret>`. The subprotocol form is
+    /// useful for browser-originated connections. Passing
+    /// [`crate::Auth::none`] is explicit and only appropriate for deliberately
+    /// unauthenticated endpoints.
     pub fn auth(mut self, auth: Auth) -> Self {
         self.auth = Some(auth);
         self
     }
-    /// Sets the optional HTTP `Origin` header.
+
+    /// Sets the HTTP `Origin` header sent during the WebSocket handshake.
+    ///
+    /// Minecraft can reject connections whose origin is absent from
+    /// `management-server-allowed-origins`. This value is sent as provided and
+    /// is not validated as a URL, matching the server property's semantics.
+    /// Calling this method more than once replaces the previous value.
     pub fn origin(mut self, origin: impl Into<String>) -> Self {
         self.origin = Some(origin.into());
         self
     }
-    /// Sets the maximum time a JSON-RPC call waits for a response.
+
+    /// Sets the maximum time an individual JSON-RPC call waits for a response.
+    ///
+    /// The timeout applies after a request enters the client's writer queue.
+    /// A zero duration is rejected by [`Self::connect`]. Timing out removes the
+    /// request's local response waiter; a late server response is ignored and
+    /// does not close the connection.
     pub fn request_timeout(mut self, timeout: Duration) -> Self {
         self.request_timeout = timeout;
         self
     }
-    /// Sets the capacity of the local request writer queue.
+
+    /// Sets the capacity of the local outbound request queue.
+    ///
+    /// The queue absorbs short bursts of concurrent calls before the single
+    /// WebSocket writer sends them. A zero capacity is rejected by
+    /// [`Self::connect`]. This is a local back-pressure limit, not a server
+    /// concurrency limit.
     pub fn channel_capacity(mut self, capacity: usize) -> Self {
         self.channel_capacity = capacity;
         self
     }
+
     /// Sets the discovery-aware invocation policy.
+    ///
+    /// The default [`crate::CompatibilityMode::Compatible`] accepts supported
+    /// historical wire forms. [`crate::CompatibilityMode::Strict`] requires a
+    /// successful `Client::discover` before ordinary calls and locally rejects
+    /// methods the server did not advertise. [`crate::CompatibilityMode::Permissive`]
+    /// is useful for experimentation with extension methods.
     pub fn compatibility_mode(mut self, mode: CompatibilityMode) -> Self {
         self.compatibility_mode = mode;
         self
     }
-    /// Sets the policy used after an unexpected transport interruption.
+
+    /// Sets automatic reconnection behavior after an unexpected interruption.
+    ///
+    /// Reconnection never replays pending or already-sent JSON-RPC requests.
+    /// A caller must decide whether a failed management action is safe to issue
+    /// again after the client returns to `Connected`. Invalid delays and attempt
+    /// limits are rejected when [`Self::connect`] validates the builder.
     pub fn reconnect_policy(mut self, policy: ReconnectPolicy) -> Self {
         self.reconnect_policy = policy;
         self
     }
 
-    /// Opens the WebSocket and starts the reader and writer tasks.
+    /// Validates the builder, opens the WebSocket, and starts session tasks.
+    ///
+    /// The Minecraft server must enable its management endpoint before this
+    /// call. A typical `server.properties` configuration is:
+    ///
+    /// ```text
+    /// management-server-enabled=true
+    /// management-server-host=127.0.0.1
+    /// management-server-port=25585
+    /// management-server-secret=<secret>
+    /// management-server-allowed-origins=mcsmp-rs
+    /// management-server-tls-enabled=true
+    /// ```
+    ///
+    /// Use a `wss://` endpoint when TLS is enabled. The `origin` value, when
+    /// configured, must be present in `management-server-allowed-origins`.
+    /// `Auth::bearer` sends the configured management secret in the standard
+    /// HTTP authorization header.
     pub async fn connect(self) -> Result<Client> {
         let config = self.into_config()?;
         let socket = open_socket(&config.websocket).await?;

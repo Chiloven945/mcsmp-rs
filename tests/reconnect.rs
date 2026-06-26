@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use mcsmp_rs::{Auth, Client, ConnectionState, Error, ReconnectPolicy};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio::time::{sleep, timeout};
 use tokio_tungstenite::accept_async;

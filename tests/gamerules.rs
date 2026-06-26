@@ -1,5 +1,5 @@
 use mcsmp_rs::{GameRuleKind, GameRuleValue, TypedGameRule, UntypedGameRule};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[test]
 fn decodes_current_and_legacy_gamerule_scalars() {
@@ -78,7 +78,15 @@ async fn gamerule_api_uses_list_and_update_wire_contracts() {
                     json!({"gamerules":[{"key":"doDaylightCycle","type":"boolean","value":true}]})
                 }
                 "minecraft:gamerules/update" => {
-                    json!({"gamerule":{"key":request["params"]["gamerule"]["key"],"type":"integer","value":request["params"]["gamerule"]["value"]}})
+                    let key = request["params"]["gamerule"]["key"]
+                        .as_str()
+                        .expect("gamerule key must be a string");
+                    let kind = match key {
+                        "doDaylightCycle" => "boolean",
+                        "legacyCounter" => "integer",
+                        key => panic!("unexpected gamerule key: {key}"),
+                    };
+                    json!({"gamerule":{"key":key,"type":kind,"value":request["params"]["gamerule"]["value"]}})
                 }
                 method => panic!("unexpected method: {method}"),
             };

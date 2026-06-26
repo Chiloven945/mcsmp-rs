@@ -2,54 +2,65 @@ use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use super::player::ensure_not_blank;
 use super::ModelError;
+use super::player::ensure_not_blank;
 
-/// Declared scalar kind of a Minecraft gamerule.
+/// Declared native scalar kind of a Minecraft gamerule.
+///
+/// The server includes this value in [`TypedGameRule`] responses. It is used to
+/// validate native boolean and integer values. Older servers can still return
+/// string values, represented by [`GameRuleValue::LegacyString`] even when a
+/// declared kind is present.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum GameRuleKind {
-    /// The gamerule holds an integer value.
+    /// Gamerule normally holds a signed integer value.
     Integer,
-    /// The gamerule holds a boolean value.
+    /// Gamerule normally holds a boolean value.
     Boolean,
 }
 
-/// A scalar gamerule value compatible with both current and legacy MCSMP
-/// servers.
+/// Scalar gamerule value compatible with current and legacy MCSMP servers.
 ///
-/// MCSMP 2.0 uses JSON booleans and integers. Earlier experimental versions
-/// and custom servers may still send string values, which are represented by
-/// [`GameRuleValue::LegacyString`] without coercing boolean-looking strings.
+/// MCSMP 2.0 uses native JSON booleans and signed integers. Earlier
+/// experimental versions and custom servers can still send JSON strings. Those
+/// strings are represented losslessly as [`Self::LegacyString`] rather than
+/// being guessed as booleans or integers.
+///
+/// This distinction matters for correctness: `"true"` remains a string, while
+/// `"12"` can be explicitly converted with [`Self::parse_integer`] when an
+/// application chooses to support that legacy convention.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum GameRuleValue {
-    /// A native JSON boolean gamerule value.
+    /// Native JSON boolean gamerule value.
     Boolean(bool),
-    /// A native JSON signed 32-bit integer gamerule value.
+    /// Native JSON signed 32-bit integer gamerule value.
     Integer(i32),
-    /// A legacy JSON string gamerule value.
+    /// Legacy JSON string gamerule value preserved without implicit coercion.
     LegacyString(String),
 }
 
 impl GameRuleValue {
-    /// Creates a boolean gamerule value.
+    /// Creates a native boolean gamerule value.
     pub const fn boolean(value: bool) -> Self {
         Self::Boolean(value)
     }
 
-    /// Creates an integer gamerule value.
+    /// Creates a native signed 32-bit integer gamerule value.
     pub const fn integer(value: i32) -> Self {
         Self::Integer(value)
     }
 
-    /// Creates a legacy string gamerule value.
+    /// Creates a legacy string gamerule value without validation or coercion.
     pub fn legacy_string(value: impl Into<String>) -> Self {
         Self::LegacyString(value.into())
     }
 
-    /// Returns the value as a boolean when it is boolean-typed.
+    /// Returns the native boolean when this value is [`Self::Boolean`].
+    ///
+    /// String values, including `"true"` and `"false"`, return `None`.
     pub const fn as_boolean(&self) -> Option<bool> {
         match self {
             Self::Boolean(value) => Some(*value),
@@ -57,7 +68,10 @@ impl GameRuleValue {
         }
     }
 
-    /// Returns the value as an integer when it is integer-typed.
+    /// Returns the native integer when this value is [`Self::Integer`].
+    ///
+    /// Legacy numeric strings return `None`; use [`Self::parse_integer`] when
+    /// an explicit fallback conversion is desired.
     pub const fn as_integer(&self) -> Option<i32> {
         match self {
             Self::Integer(value) => Some(*value),
@@ -65,8 +79,7 @@ impl GameRuleValue {
         }
     }
 
-    /// Returns the legacy string when this value was decoded from or created as
-    /// a string.
+    /// Returns the stored string when this value is [`Self::LegacyString`].
     pub fn as_legacy_string(&self) -> Option<&str> {
         match self {
             Self::LegacyString(value) => Some(value),
@@ -74,11 +87,12 @@ impl GameRuleValue {
         }
     }
 
-    /// Parses a legacy string as a signed 32-bit integer.
+    /// Returns a signed 32-bit integer from a native or legacy numeric value.
     ///
-    /// This intentionally does not parse `"true"` or `"false"`: the protocol
-    /// permits integer strings for compatibility, but boolean strings are not
-    /// equivalent to native boolean values.
+    /// Native integers are returned directly. Legacy strings are parsed with
+    /// Rust's `i32` parser. This intentionally does not parse `"true"` or
+    /// `"false"`: legacy boolean-looking strings are not equivalent to native
+    /// boolean protocol values.
     pub fn parse_integer(&self) -> Option<i32> {
         match self {
             Self::Integer(value) => Some(*value),
@@ -156,22 +170,30 @@ impl<'de> Deserialize<'de> for GameRuleValue {
     }
 }
 
-/// A gamerule returned by the server together with its declared type.
+/// Gamerule returned by the server together with its declared native kind.
+///
+/// The wire representation contains `key`, `type`, and `value`. Native
+/// booleans and integers must agree with `kind`; otherwise deserialization or
+/// construction returns [`ModelError::GameRuleTypeMismatch`]. Legacy string
+/// values are accepted to preserve compatibility with older server wire forms.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct TypedGameRule {
-    /// Resource identifier/key of the gamerule.
+    /// Non-blank gamerule resource key, such as `doDaylightCycle`.
     pub key: String,
-    /// Declared type supplied by the server.
+    /// Native scalar kind supplied in the wire field named `type`.
     #[serde(rename = "type")]
     pub kind: GameRuleKind,
-    /// Current scalar value.
+    /// Current native or legacy scalar value supplied by the server.
     pub value: GameRuleValue,
 }
 
 impl TypedGameRule {
-    /// Creates a typed gamerule, validating native boolean/integer values
-    /// against the declared kind. Legacy strings are accepted for older
-    /// servers, whose wire format cannot express a native type.
+    /// Creates and validates a typed gamerule.
+    ///
+    /// `key` must be non-blank. A native boolean must use
+    /// [`GameRuleKind::Boolean`] and a native integer must use
+    /// [`GameRuleKind::Integer`]. Legacy string values are accepted with either
+    /// kind because historical MCSMP payloads cannot express the native type.
     pub fn new(
         key: impl Into<String>,
         kind: GameRuleKind,
@@ -203,17 +225,21 @@ impl<'de> Deserialize<'de> for TypedGameRule {
     }
 }
 
-/// A gamerule update request without a declared type.
+/// Gamerule update request without a server-declared kind.
+///
+/// MCSMP update requests intentionally contain only `key` and `value`; the
+/// server owns the authoritative kind. Use the convenience constructors when
+/// the desired scalar type is known.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UntypedGameRule {
-    /// Resource identifier/key of the gamerule to update.
+    /// Non-blank gamerule key to update.
     pub key: String,
-    /// New scalar value for the gamerule.
+    /// New native or legacy scalar value to send.
     pub value: GameRuleValue,
 }
 
 impl UntypedGameRule {
-    /// Creates a gamerule update request.
+    /// Creates a gamerule update request from a non-blank key and scalar value.
     pub fn new(
         key: impl Into<String>,
         value: impl Into<GameRuleValue>,
@@ -226,17 +252,17 @@ impl UntypedGameRule {
         })
     }
 
-    /// Creates a boolean gamerule update request.
+    /// Creates an update request with a native boolean scalar.
     pub fn boolean(key: impl Into<String>, value: bool) -> Result<Self, ModelError> {
         Self::new(key, GameRuleValue::Boolean(value))
     }
 
-    /// Creates an integer gamerule update request.
+    /// Creates an update request with a native signed integer scalar.
     pub fn integer(key: impl Into<String>, value: i32) -> Result<Self, ModelError> {
         Self::new(key, GameRuleValue::Integer(value))
     }
 
-    /// Creates a legacy string gamerule update request.
+    /// Creates an update request with a legacy string scalar.
     pub fn legacy_string(
         key: impl Into<String>,
         value: impl Into<String>,

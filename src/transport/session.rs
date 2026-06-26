@@ -14,8 +14,8 @@ use tokio_tungstenite::tungstenite::{Error as WebSocketError, Message};
 
 use crate::capability::{Capabilities, CompatibilityMode};
 use crate::client::ConnectionState;
-use crate::events::{decode_event, normalize_notification, Event, RawNotification};
-use crate::transport::jsonrpc::{parse_inbound, serialize_request, Inbound, OutboundRequest};
+use crate::events::{Event, RawNotification, decode_event, normalize_notification};
+use crate::transport::jsonrpc::{Inbound, OutboundRequest, parse_inbound, serialize_request};
 use crate::transport::reconnect::{self, ReconnectPolicy};
 use crate::transport::request::PendingRequests;
 use crate::transport::websocket::{Socket, WebSocketConfig};

@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
 use mcsmp_rs::{Auth, Client, CompatibilityMode, Error, Feature, ProtocolVersion};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::accept_async;
@@ -147,12 +147,18 @@ async fn strict_invocation_uses_discovered_capabilities() {
     assert!(capabilities.supports_feature(Feature::WorldUpgradeNotifications));
     assert_eq!(client.capabilities(), Some(capabilities.clone()));
 
-    let status = client.server().status().await.unwrap();
-    assert!(!status.started);
+    // Check an unadvertised method before the mock has processed its final
+    // expected request. Once the mock has handled `server/status` it closes
+    // the socket, and session shutdown deliberately clears cached discovery
+    // state; testing after that close would observe `DiscoveryRequired` or
+    // `Closed` instead of the local strict-mode rejection.
     assert!(matches!(
         client.players().list().await,
         Err(Error::UnsupportedMethod { .. })
     ));
+
+    let status = client.server().status().await.unwrap();
+    assert!(!status.started);
 
     let requests = server.await.unwrap();
     assert_eq!(

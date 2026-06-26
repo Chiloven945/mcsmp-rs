@@ -5,9 +5,31 @@ edition = "2024"
 rust-version = "1.85"
 description = "Async Rust client for the Minecraft Server Management Protocol (MCSMP)"
 license = "Apache-2.0"
+readme = "README.md"
+documentation = "https://docs.rs/mcsmp-rs"
+homepage = "https://github.com/Chiloven945/mcsmp-rs"
 repository = "https://github.com/Chiloven945/mcsmp-rs"
 keywords = ["minecraft", "mcsmp", "json-rpc", "websocket", "tokio"]
 categories = ["api-bindings", "asynchronous", "network-programming"]
+include = [
+    "/src/**",
+    "/tests/**",
+    "/examples/**",
+    "/docs/**",
+    "/fuzz/**",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/LICENSE-APACHE",
+    "/Cargo.toml",
+]
+
+[features]
+default = []
+# Enables a deliberately small, doc-hidden parser entry point for the local
+# cargo-fuzz target. This feature is not needed by downstream users.
+fuzzing = []
 
 [dependencies]
 futures-util = "0.3"
@@ -20,3 +42,7 @@ url = "2"
 uuid = { version = "1", features = ["serde"] }
 
 [dev-dependencies]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

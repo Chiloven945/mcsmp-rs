@@ -3,31 +3,34 @@ use std::net::IpAddr;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::player::{ensure_not_blank, ModelError};
 use super::PlayerRef;
+use super::player::{ModelError, ensure_not_blank};
 
-/// A user-ban entry returned by, or sent to, `minecraft:bans` endpoints.
+/// User-ban entry used by the `minecraft:bans` resource.
 ///
-/// `expires` is an ISO-8601 instant in the representation accepted by the
-/// server. `None` denotes a permanent ban.
+/// A user ban targets a [`crate::PlayerRef`] rather than a network address.
+/// `reason` and `source` are optional metadata. `expires` is an ISO-8601
+/// instant accepted by Minecraft; `None` means that the ban is permanent.
+/// The crate validates only that provided text is non-blank, leaving timestamp
+/// syntax and account resolution to the server.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserBan {
-    /// The player whose account is banned.
+    /// Player selector identifying the banned account.
     pub player: PlayerRef,
-    /// An optional human-readable reason.
+    /// Optional non-blank human-readable reason stored with the ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    /// An optional actor or source that created the ban.
+    /// Optional non-blank actor, tool, or source label that created the ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    /// An optional ISO-8601 expiration instant.
+    /// Optional ISO-8601 expiration instant; `None` denotes a permanent ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires: Option<String>,
 }
 
 impl UserBan {
-    /// Creates a permanent user ban with no extra metadata.
+    /// Creates a permanent user ban with no reason or source metadata.
     pub fn permanent(player: PlayerRef) -> Self {
         Self {
             player,
@@ -38,6 +41,9 @@ impl UserBan {
     }
 
     /// Creates a permanent user ban with a non-blank reason.
+    ///
+    /// Returns [`ModelError::BlankField`] when `reason` is empty or
+    /// whitespace-only.
     pub fn with_reason(player: PlayerRef, reason: impl Into<String>) -> Result<Self, ModelError> {
         let reason = reason.into();
         ensure_not_blank("reason", &reason)?;
@@ -49,7 +55,10 @@ impl UserBan {
         })
     }
 
-    /// Adds a non-blank source string to this ban.
+    /// Adds a non-blank source label and returns the updated ban.
+    ///
+    /// This builder-style method returns [`ModelError::BlankField`] for empty
+    /// or whitespace-only input.
     pub fn with_source(mut self, source: impl Into<String>) -> Result<Self, ModelError> {
         let source = source.into();
         ensure_not_blank("source", &source)?;
@@ -57,7 +66,10 @@ impl UserBan {
         Ok(self)
     }
 
-    /// Adds a non-blank ISO-8601 expiration instant to this ban.
+    /// Adds a non-blank expiration string and returns the updated ban.
+    ///
+    /// The value should be an ISO-8601 instant accepted by Minecraft. Syntax
+    /// beyond the non-blank check is validated by the server.
     pub fn expiring_at(mut self, expires: impl Into<String>) -> Result<Self, ModelError> {
         let expires = expires.into();
         ensure_not_blank("expires", &expires)?;
@@ -66,27 +78,29 @@ impl UserBan {
     }
 }
 
-/// A resolved IP-ban entry returned by, or sent to, `minecraft:ip_bans`.
+/// Resolved network-address ban entry used by `minecraft:ip_bans`.
 ///
-/// `expires` is an ISO-8601 instant; `None` denotes a permanent ban.
+/// Unlike [`IncomingIpBan`], this type always contains a concrete
+/// [`std::net::IpAddr`]. `expires` is an ISO-8601 instant accepted by
+/// Minecraft; `None` denotes a permanent ban.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpBan {
-    /// The concrete network address that is banned.
+    /// Concrete IPv4 or IPv6 address that is banned.
     pub ip: IpAddr,
-    /// An optional human-readable reason.
+    /// Optional non-blank human-readable reason stored with the ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    /// An optional actor or source that created the ban.
+    /// Optional non-blank actor, tool, or source label that created the ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    /// An optional ISO-8601 expiration instant.
+    /// Optional ISO-8601 expiration instant; `None` denotes a permanent ban.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires: Option<String>,
 }
 
 impl IpBan {
-    /// Creates a permanent IP ban with no extra metadata.
+    /// Creates a permanent IP ban with no reason or source metadata.
     pub fn permanent(ip: IpAddr) -> Self {
         Self {
             ip,
@@ -97,6 +111,8 @@ impl IpBan {
     }
 
     /// Creates a permanent IP ban with a non-blank reason.
+    ///
+    /// Returns [`ModelError::BlankField`] for empty or whitespace-only text.
     pub fn with_reason(ip: IpAddr, reason: impl Into<String>) -> Result<Self, ModelError> {
         let reason = reason.into();
         ensure_not_blank("reason", &reason)?;
@@ -108,7 +124,10 @@ impl IpBan {
         })
     }
 
-    /// Adds a non-blank source string to this ban.
+    /// Adds a non-blank source label and returns the updated ban.
+    ///
+    /// This builder-style method returns [`ModelError::BlankField`] for empty
+    /// or whitespace-only input.
     pub fn with_source(mut self, source: impl Into<String>) -> Result<Self, ModelError> {
         let source = source.into();
         ensure_not_blank("source", &source)?;
@@ -116,7 +135,10 @@ impl IpBan {
         Ok(self)
     }
 
-    /// Adds a non-blank ISO-8601 expiration instant to this ban.
+    /// Adds a non-blank expiration string and returns the updated ban.
+    ///
+    /// The value should be an ISO-8601 instant accepted by Minecraft. Syntax
+    /// beyond the non-blank check is validated by the server.
     pub fn expiring_at(mut self, expires: impl Into<String>) -> Result<Self, ModelError> {
         let expires = expires.into();
         ensure_not_blank("expires", &expires)?;
@@ -125,10 +147,15 @@ impl IpBan {
     }
 }
 
-/// A request to create an IP ban by direct address, player selector, or both.
+/// Input for creating an IP ban by direct address, player selector, or both.
 ///
-/// The server resolves player selectors into a concrete address when possible.
-/// It may use the direct IP address when both fields are set.
+/// The server can resolve a [`crate::PlayerRef`] to the player's current
+/// address. When both fields are supplied, the direct address is preserved in
+/// the request and the server determines final resolution. The result of
+/// `IpBansApi::add` is always a resolved [`IpBan`] with a concrete address.
+///
+/// At least one target is required. Optional reason, source, and expiry fields
+/// use the same semantics as [`IpBan`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IncomingIpBan {
@@ -145,7 +172,7 @@ pub struct IncomingIpBan {
 }
 
 impl IncomingIpBan {
-    /// Creates a direct-address IP-ban request.
+    /// Creates a request targeting one concrete IPv4 or IPv6 address.
     pub const fn ip(ip: IpAddr) -> Self {
         Self {
             ip: Some(ip),
@@ -156,8 +183,10 @@ impl IncomingIpBan {
         }
     }
 
-    /// Creates an IP-ban request that asks the server to resolve a player's
-    /// current address.
+    /// Creates a request asking the server to resolve a player's address.
+    ///
+    /// Resolution happens remotely and may fail or produce no ban if the
+    /// server cannot obtain an address for the selected player.
     pub fn player(player: PlayerRef) -> Self {
         Self {
             ip: None,
@@ -168,8 +197,10 @@ impl IncomingIpBan {
         }
     }
 
-    /// Creates an IP-ban request containing an optional direct address and
-    /// optional player selector.
+    /// Creates an IP-ban request with an optional address and player selector.
+    ///
+    /// At least one argument must be present or
+    /// [`ModelError::MissingIpBanTarget`] is returned.
     pub fn new(ip: Option<IpAddr>, player: Option<PlayerRef>) -> Result<Self, ModelError> {
         if ip.is_none() && player.is_none() {
             return Err(ModelError::MissingIpBanTarget);
@@ -183,12 +214,12 @@ impl IncomingIpBan {
         })
     }
 
-    /// Returns the direct IP address selected by this request, when present.
+    /// Returns the explicitly supplied IP address, when present.
     pub const fn address(&self) -> Option<IpAddr> {
         self.ip
     }
 
-    /// Returns the player selector selected by this request, when present.
+    /// Returns the player selector used for server-side address resolution.
     pub fn player_selector(&self) -> Option<&PlayerRef> {
         self.player.as_ref()
     }
@@ -198,12 +229,12 @@ impl IncomingIpBan {
         self.reason.as_deref()
     }
 
-    /// Returns the optional actor or source that created this ban request.
+    /// Returns the optional actor, tool, or source label.
     pub fn source(&self) -> Option<&str> {
         self.source.as_deref()
     }
 
-    /// Returns the optional ISO-8601 expiration instant.
+    /// Returns the optional ISO-8601 expiration string.
     pub fn expires(&self) -> Option<&str> {
         self.expires.as_deref()
     }
@@ -216,7 +247,7 @@ impl IncomingIpBan {
         Ok(self)
     }
 
-    /// Adds a non-blank actor or source string.
+    /// Adds a non-blank actor, tool, or source label.
     pub fn with_source(mut self, source: impl Into<String>) -> Result<Self, ModelError> {
         let source = source.into();
         ensure_not_blank("source", &source)?;
@@ -224,7 +255,9 @@ impl IncomingIpBan {
         Ok(self)
     }
 
-    /// Adds a non-blank ISO-8601 expiration instant.
+    /// Adds a non-blank expiration string.
+    ///
+    /// The server validates ISO-8601 syntax when the request is sent.
     pub fn expiring_at(mut self, expires: impl Into<String>) -> Result<Self, ModelError> {
         let expires = expires.into();
         ensure_not_blank("expires", &expires)?;

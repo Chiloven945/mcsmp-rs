@@ -5,7 +5,7 @@ use mcsmp_rs::{
     Auth, Client, IncomingIpBan, IpBan, KickPlayer, Message, Operator, PlayerRef, SystemMessage,
     UserBan,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::accept_async;

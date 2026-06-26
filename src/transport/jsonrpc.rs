@@ -209,4 +209,63 @@ mod tests {
         .expect_err("ambiguous response must be rejected");
         assert!(matches!(error, Error::Protocol(_)));
     }
+
+    #[test]
+    fn parses_jsonrpc_fixtures() {
+        let success = parse_inbound(include_str!("../../tests/fixtures/jsonrpc/success.json"));
+        assert!(matches!(
+            success,
+            Ok(Inbound::Response { result: Ok(_), .. })
+        ));
+
+        let remote_error = parse_inbound(include_str!(
+            "../../tests/fixtures/jsonrpc/remote_error.json"
+        ));
+        assert!(matches!(
+            remote_error,
+            Ok(Inbound::Response {
+                result: Err(Error::Remote(_)),
+                ..
+            })
+        ));
+
+        let malformed = parse_inbound(include_str!(
+            "../../tests/fixtures/jsonrpc/malformed_response.json"
+        ));
+        assert!(matches!(malformed, Err(Error::Protocol(_))));
+    }
+
+    #[test]
+    fn arbitrary_inbound_text_never_panics() {
+        const SEEDS: &[&str] = &[
+            "",
+            "null",
+            "[]",
+            "{",
+            r#"{"jsonrpc":"2.0"}"#,
+            r#"{"jsonrpc":"2.0","id":0,"result":null}"#,
+            r#"{"jsonrpc":"2.0","method":5}"#,
+            r#"{"jsonrpc":"1.0","id":1,"result":{}}"#,
+        ];
+
+        for seed in SEEDS {
+            let outcome = std::panic::catch_unwind(|| parse_inbound(seed));
+            assert!(outcome.is_ok(), "parser panicked for seed {seed:?}");
+        }
+
+        let mut state = 0x9e37_79b9_u32;
+        for length in 0..=256 {
+            let mut bytes = Vec::with_capacity(length);
+            for _ in 0..length {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                bytes.push((state >> 24) as u8);
+            }
+            let text = String::from_utf8_lossy(&bytes);
+            let outcome = std::panic::catch_unwind(|| parse_inbound(&text));
+            assert!(
+                outcome.is_ok(),
+                "parser panicked for generated length {length}"
+            );
+        }
+    }
 }

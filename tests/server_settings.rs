@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
 use mcsmp_rs::{Auth, Client, Difficulty, GameMode};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::accept_async;

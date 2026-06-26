@@ -6,43 +6,60 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::client::{Client, ConnectionState};
-use crate::transport::session::{start_session, SessionController};
+use crate::transport::session::{SessionController, start_session};
 use crate::transport::websocket::open_socket;
 
-/// Controls whether and how a client reconnects after an unexpected WebSocket
-/// close or transport failure.
+/// Controls whether and how a client reconnects after an unexpected interruption.
 ///
-/// Reconnection never retries an in-flight JSON-RPC request. Calls that were
-/// pending when the connection failed complete with the original terminal
-/// error; callers must decide whether a particular operation is safe to issue
-/// again. This is especially important for non-idempotent operations such as
-/// kicking, banning, or stopping a server.
+/// Configure this through [`crate::ClientBuilder::reconnect_policy`]. The
+/// policy applies only to unexpected transport failures or peer closes; it
+/// does not reconnect after an explicit [`crate::Client::shutdown`].
+///
+/// Reconnection never retries an in-flight JSON-RPC request. Calls pending
+/// when the connection failed complete with their terminal error, and new
+/// calls made while reconnecting return [`crate::Error::Reconnecting`]. This
+/// is essential for non-idempotent administration operations such as kicking,
+/// banning, changing settings, saving, or stopping a server. After a new
+/// session is established, the client clears stale capabilities and performs a
+/// fresh discovery attempt without replaying any prior management operation.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ReconnectPolicy {
-    /// Do not reconnect automatically. This is the default.
+    /// Never reconnect automatically after an unexpected interruption.
+    ///
+    /// This is the default and leaves the client in a terminal state after the
+    /// active session fails.
     #[default]
     Never,
-    /// Retry connections after a constant delay.
+    /// Retry connections after the same delay for every attempt.
     Fixed {
-        /// Delay before every reconnect attempt.
+        /// Positive delay before every reconnect attempt.
         delay: Duration,
-        /// Maximum reconnect attempts after one disconnection.
+        /// Optional positive maximum number of attempts after one disconnection.
+        ///
+        /// `None` means retry indefinitely until an explicit shutdown.
         max_attempts: Option<usize>,
     },
     /// Retry connections using exponential backoff capped at `max_delay`.
+    ///
+    /// Delays double from `initial_delay` until they reach `max_delay`.
     Exponential {
-        /// Delay before the first reconnect attempt.
+        /// Positive delay before the first reconnect attempt.
         initial_delay: Duration,
-        /// Largest delay used by the backoff schedule.
+        /// Positive upper bound for delays produced by the backoff schedule.
         max_delay: Duration,
-        /// Maximum reconnect attempts after one disconnection.
+        /// Optional positive maximum number of attempts after one disconnection.
+        ///
+        /// `None` means retry indefinitely until an explicit shutdown.
         max_attempts: Option<usize>,
     },
 }
 
 impl ReconnectPolicy {
-    /// Returns a fixed-delay reconnect policy.
+    /// Creates a fixed-delay reconnect policy.
+    ///
+    /// The policy is validated when a client connects. `delay` must be
+    /// non-zero; when supplied, `max_attempts` must be greater than zero.
     pub const fn fixed(delay: Duration, max_attempts: Option<usize>) -> Self {
         Self::Fixed {
             delay,
@@ -50,7 +67,12 @@ impl ReconnectPolicy {
         }
     }
 
-    /// Returns an exponential-backoff reconnect policy.
+    /// Creates an exponential-backoff reconnect policy.
+    ///
+    /// Attempt one waits `initial_delay`, attempt two waits twice that value,
+    /// and later attempts continue doubling until `max_delay` is reached. The
+    /// policy is validated when a client connects: both durations must be
+    /// non-zero and `initial_delay` cannot exceed `max_delay`.
     pub const fn exponential(
         initial_delay: Duration,
         max_delay: Duration,
@@ -63,7 +85,7 @@ impl ReconnectPolicy {
         }
     }
 
-    /// Returns whether the client should attempt automatic reconnection.
+    /// Returns whether this policy enables automatic reconnect attempts.
     pub const fn is_enabled(&self) -> bool {
         !matches!(self, Self::Never)
     }

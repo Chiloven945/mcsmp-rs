@@ -2,36 +2,49 @@ use serde::de::Error as _;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::player::{ensure_not_blank, ModelError};
 use super::PlayerRef;
+use super::player::{ModelError, ensure_not_blank};
 
-/// A display message represented as literal text or a Minecraft translation
-/// key with parameters.
+/// Minecraft display message represented as literal text or a translation key.
 ///
-/// If a payload contains both a translation key and literal text, MCSMP gives
-/// the translation form precedence. Deserializing such a payload therefore
-/// yields [`Message::Translatable`].
+/// MCSMP encodes literal messages as `{ "literal": "..." }` and translatable
+/// messages as `{ "translatable": "key", "translatableParams": [...] }`.
+/// Translation-key resolution occurs on the receiving Minecraft client, which
+/// can render the same key in each player's language.
+///
+/// If a payload contains both forms, MCSMP gives the translation form
+/// precedence. Deserializing such a payload therefore yields
+/// [`Self::Translatable`] and ignores the literal fallback.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Message {
-    /// Literal text that Minecraft displays without translation-key lookup.
+    /// Literal text rendered without translation-key lookup.
+    ///
+    /// The text is serialized in the protocol's `literal` field.
     Literal(String),
-    /// A Minecraft translation key and the values substituted into it.
+    /// Translation key and string parameters substituted by Minecraft clients.
     Translatable {
-        /// The non-blank translation key.
+        /// Non-blank Minecraft translation key serialized as `translatable`.
         key: String,
-        /// Values supplied to the translated message.
+        /// Values serialized as `translatableParams` for the translation key.
         params: Vec<String>,
     },
 }
 
 impl Message {
     /// Creates a literal message.
+    ///
+    /// Literal text may be empty because the protocol can intentionally send an
+    /// empty display payload. No translation lookup occurs for this variant.
     pub fn literal(text: impl Into<String>) -> Self {
         Self::Literal(text.into())
     }
 
-    /// Creates a translation-key message.
+    /// Creates a translation-key message with string parameters.
+    ///
+    /// Returns [`ModelError::BlankField`] when `key` is empty or
+    /// whitespace-only. Parameters are converted to owned strings in iterator
+    /// order and are omitted from the wire payload when the list is empty.
     pub fn translatable<I, P>(key: impl Into<String>, params: I) -> Result<Self, ModelError>
     where
         I: IntoIterator<Item = P>,
@@ -45,7 +58,10 @@ impl Message {
         })
     }
 
-    /// Returns literal text when this is a literal message.
+    /// Returns literal text when this is a [`Self::Literal`] message.
+    ///
+    /// Returns `None` for a translatable message because its final text depends
+    /// on the receiving client's language resources.
     pub fn literal_text(&self) -> Option<&str> {
         match self {
             Self::Literal(text) => Some(text),
@@ -53,7 +69,7 @@ impl Message {
         }
     }
 
-    /// Returns the translation key when this is a translatable message.
+    /// Returns the translation key when this is a [`Self::Translatable`] message.
     pub fn translation_key(&self) -> Option<&str> {
         match self {
             Self::Literal(_) => None,
@@ -113,19 +129,23 @@ impl<'de> Deserialize<'de> for Message {
     }
 }
 
-/// A request to disconnect a selected player, optionally with a custom message.
+/// Request to disconnect a selected player, optionally with a custom message.
+///
+/// This is the item type accepted by [`crate::PlayersApi::kick`]. The target
+/// selector is required; omitting `message` lets Minecraft use its normal
+/// disconnect text.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KickPlayer {
-    /// The player who should be disconnected.
+    /// Required selector identifying the player to disconnect.
     pub player: PlayerRef,
-    /// An optional message shown when the player is disconnected.
+    /// Optional literal or translatable message shown on disconnect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
 }
 
 impl KickPlayer {
-    /// Creates a kick request without a custom message.
+    /// Creates a kick request that lets Minecraft choose the disconnect text.
     pub fn new(player: PlayerRef) -> Self {
         Self {
             player,
@@ -133,7 +153,7 @@ impl KickPlayer {
         }
     }
 
-    /// Creates a kick request with a custom disconnect message.
+    /// Creates a kick request with a literal or translatable disconnect message.
     pub fn with_message(player: PlayerRef, message: Message) -> Self {
         Self {
             player,
@@ -142,13 +162,19 @@ impl KickPlayer {
     }
 }
 
-/// A system message sent to all players or a selected group of players.
+/// System message delivered to all players or an explicitly selected subset.
+///
+/// This model is accepted by [`crate::ServerApi::system_message`]. `overlay`
+/// selects action-bar rendering rather than normal chat-style rendering.
+/// `receiving_players: None` means all applicable recipients; an explicit empty
+/// recipient list is serialized as an empty array and is intentionally distinct
+/// from omitting the field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemMessage {
-    /// The message content to send.
+    /// Literal or translatable content to deliver.
     pub message: Message,
-    /// Whether the message is shown as an action-bar overlay.
+    /// Whether Minecraft should render the message as an action-bar overlay.
     pub overlay: bool,
     /// Optional selected recipients; `None` sends to all applicable players.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -156,7 +182,7 @@ pub struct SystemMessage {
 }
 
 impl SystemMessage {
-    /// Creates a normal chat/system message for all players.
+    /// Creates a normal chat-style system message for all applicable players.
     pub fn chat(message: Message) -> Self {
         Self {
             message,
@@ -165,7 +191,7 @@ impl SystemMessage {
         }
     }
 
-    /// Creates an action-bar overlay message for all players.
+    /// Creates an action-bar overlay message for all applicable players.
     pub fn action_bar(message: Message) -> Self {
         Self {
             message,
@@ -174,7 +200,11 @@ impl SystemMessage {
         }
     }
 
-    /// Targets this message to the provided player selectors.
+    /// Restricts this message to the supplied player selectors.
+    ///
+    /// Passing an empty iterator serializes an explicit empty recipient list;
+    /// it does not restore broadcast-to-all behavior. Create a fresh
+    /// `SystemMessage` without calling this method to broadcast normally.
     pub fn to(mut self, players: impl IntoIterator<Item = PlayerRef>) -> Self {
         self.receiving_players = Some(players.into_iter().collect());
         self

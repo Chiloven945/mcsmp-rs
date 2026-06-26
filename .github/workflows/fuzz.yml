@@ -1,0 +1,25 @@
+name: Fuzz Smoke Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 4"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  jsonrpc-inbound:
+    name: JSON-RPC inbound parser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz parser for 30 seconds
+        working-directory: fuzz
+        run: cargo fuzz run jsonrpc_inbound -- -max_total_time=30

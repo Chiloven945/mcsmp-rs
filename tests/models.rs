@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use mcsmp_rs::{
     IncomingIpBan, IpBan, Message, Operator, PlayerRef, ServerState, SystemMessage, UserBan,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 #[test]
