@@ -1,0 +1,21 @@
+[package]
+name = "mcsmp-rs"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Async Rust client for the Minecraft Server Management Protocol (MCSMP)"
+license = "Apache-2.0"
+repository = "https://github.com/Chiloven945/mcsmp-rs"
+keywords = ["minecraft", "mcsmp", "json-rpc", "websocket", "tokio"]
+categories = ["api-bindings", "asynchronous", "network-programming"]
+
+[dependencies]
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+tokio-tungstenite = { version = "0.26", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
+url = "2"
+
+[dev-dependencies]
