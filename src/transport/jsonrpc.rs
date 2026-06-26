@@ -1,12 +1,11 @@
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 
 use crate::{Error, RemoteError, RequestId, Result};
 
 /// A text request waiting to be emitted by the writer task.
 #[derive(Debug)]
 pub(crate) struct OutboundRequest {
-    pub(crate) id: RequestId,
     pub(crate) text: String,
 }
 

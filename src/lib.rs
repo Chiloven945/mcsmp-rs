@@ -41,13 +41,19 @@ pub mod api;
 pub mod compatibility;
 /// Capability discovery and MCSMP protocol-version models.
 pub mod discovery;
+/// Strongly typed MCSMP notifications and asynchronous event streams.
+pub mod event;
 /// Strongly typed MCSMP request and response models.
 pub mod model;
+/// Automatic reconnection policy configuration.
+pub mod reconnect;
 
 mod auth;
 mod client;
+mod connection;
 mod error;
 mod raw;
+mod runtime;
 mod transport;
 
 pub use api::{
@@ -59,9 +65,11 @@ pub use client::{Client, ClientBuilder, ConnectionState, Notification, RequestId
 pub use compatibility::CompatibilityMode;
 pub use discovery::{Capabilities, Feature, ProtocolVersion, ProtocolVersionParseError};
 pub use error::{Error, RemoteError, Result};
+pub use event::{Event, EventStream, EventStreamError, RawNotification};
 pub use model::{
     Difficulty, GameMode, GameRuleKind, GameRuleType, GameRuleValue, IncomingIpBan, IpBan,
     KickPlayer, Message, MinecraftVersion, ModelError, Operator, PlayerRef, ServerState,
     SystemMessage, TypedGameRule, UntypedGameRule, UserBan,
 };
 pub use raw::RawApi;
+pub use reconnect::ReconnectPolicy;

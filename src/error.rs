@@ -55,6 +55,14 @@ pub enum Error {
     #[error("websocket connection is closed")]
     Closed,
 
+    /// The client is reconnecting after an unexpected transport interruption.
+    ///
+    /// Requests are not queued or replayed while reconnecting. Wait for
+    /// [`crate::ConnectionState::Connected`] and issue a new call only when
+    /// doing so is semantically safe for the operation.
+    #[error("websocket client is reconnecting; requests are not queued or replayed")]
+    Reconnecting,
+
     /// A JSON-RPC call exceeded its configured deadline.
     #[error("JSON-RPC request {id} for method `{method}` timed out")]
     Timeout {
