@@ -17,9 +17,12 @@ use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::{Error as WebSocketError, Message};
 use url::Url;
 
-use crate::api::{AllowlistApi, BansApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi};
+use crate::api::{
+    AllowlistApi, BansApi, GamerulesApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi,
+    ServerSettingsApi,
+};
 use crate::transport::{parse_inbound, serialize_request, Inbound, OutboundRequest};
-use crate::{Auth, Error, RawApi, Result};
+use crate::{Auth, Capabilities, CompatibilityMode, Error, RawApi, Result};
 
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_CHANNEL_CAPACITY: usize = 128;
@@ -77,6 +80,7 @@ pub struct ClientBuilder {
     origin: Option<String>,
     request_timeout: Duration,
     channel_capacity: usize,
+    compatibility_mode: CompatibilityMode,
 }
 
 impl ClientBuilder {
@@ -88,6 +92,7 @@ impl ClientBuilder {
             origin: None,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             channel_capacity: DEFAULT_CHANNEL_CAPACITY,
+            compatibility_mode: CompatibilityMode::default(),
         }
     }
 
@@ -115,6 +120,12 @@ impl ClientBuilder {
     /// The value must be greater than zero.
     pub fn channel_capacity(mut self, capacity: usize) -> Self {
         self.channel_capacity = capacity;
+        self
+    }
+
+    /// Sets the compatibility policy used when invoking discovered methods.
+    pub fn compatibility_mode(mut self, mode: CompatibilityMode) -> Self {
+        self.compatibility_mode = mode;
         self
     }
 
@@ -238,6 +249,8 @@ impl Client {
             shutdown_tx,
             state: RwLock::new(ConnectionState::Connected),
             request_timeout: builder.request_timeout,
+            compatibility_mode: builder.compatibility_mode,
+            capabilities: RwLock::new(None),
             tasks: Mutex::new(None),
         });
 
@@ -302,6 +315,46 @@ impl Client {
         ServerApi::new(self.clone())
     }
 
+    /// Returns strongly typed live server-settings operations.
+    pub fn server_settings(&self) -> ServerSettingsApi {
+        ServerSettingsApi::new(self.clone())
+    }
+
+    /// Returns strongly typed gamerule operations.
+    pub fn gamerules(&self) -> GamerulesApi {
+        GamerulesApi::new(self.clone())
+    }
+
+    /// Returns the configured capability-compatibility policy.
+    pub fn compatibility_mode(&self) -> CompatibilityMode {
+        self.inner.compatibility_mode
+    }
+
+    /// Returns the latest capability snapshot obtained with [`Client::discover`].
+    pub fn capabilities(&self) -> Option<Capabilities> {
+        self.inner
+            .capabilities
+            .read()
+            .expect("capabilities lock poisoned")
+            .clone()
+    }
+
+    /// Calls `rpc.discover`, converts the returned schema into a capability
+    /// snapshot, and replaces the client's cached snapshot.
+    ///
+    /// Discovery itself bypasses strict-mode method gating because it establishes
+    /// the schema used for later strict calls.
+    pub async fn discover(&self) -> Result<Capabilities> {
+        let raw_schema = self.call_value_unchecked("rpc.discover", None).await?;
+        let capabilities = Capabilities::from_schema(raw_schema);
+        *self
+            .inner
+            .capabilities
+            .write()
+            .expect("capabilities lock poisoned") = Some(capabilities.clone());
+        Ok(capabilities)
+    }
+
     /// Closes the socket, stops background tasks, and fails outstanding calls.
     pub async fn shutdown(&self) -> Result<()> {
         let preserve_failed_state = {
@@ -331,7 +384,47 @@ impl Client {
         Ok(())
     }
 
-    pub(crate) async fn call_value(&self, method: &str, params: Option<Value>) -> Result<Value> {
+    pub(crate) async fn call_typed_value(
+        &self,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value> {
+        self.ensure_method_allowed(method)?;
+        self.call_value_unchecked(method, params).await
+    }
+
+    pub(crate) async fn call_raw_value(
+        &self,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<Value> {
+        if method != "rpc.discover" {
+            self.ensure_method_allowed(method)?;
+        }
+        self.call_value_unchecked(method, params).await
+    }
+
+    fn ensure_method_allowed(&self, method: &str) -> Result<()> {
+        if self.compatibility_mode() != CompatibilityMode::Strict {
+            return Ok(());
+        }
+
+        let capabilities = self
+            .inner
+            .capabilities
+            .read()
+            .expect("capabilities lock poisoned");
+        let capabilities = capabilities.as_ref().ok_or(Error::DiscoveryRequired)?;
+        if capabilities.supports_method(method) {
+            Ok(())
+        } else {
+            Err(Error::UnsupportedMethod {
+                method: method.to_owned(),
+            })
+        }
+    }
+
+    async fn call_value_unchecked(&self, method: &str, params: Option<Value>) -> Result<Value> {
         if self.state() != ConnectionState::Connected {
             return Err(Error::Closed);
         }
@@ -379,6 +472,8 @@ struct ClientInner {
     shutdown_tx: watch::Sender<bool>,
     state: RwLock<ConnectionState>,
     request_timeout: Duration,
+    compatibility_mode: CompatibilityMode,
+    capabilities: RwLock<Option<Capabilities>>,
     tasks: Mutex<Option<ConnectionTasks>>,
 }
 
@@ -388,6 +483,7 @@ impl fmt::Debug for ClientInner {
             .debug_struct("ClientInner")
             .field("state", &self.state.read().ok())
             .field("request_timeout", &self.request_timeout)
+            .field("compatibility_mode", &self.compatibility_mode)
             .finish_non_exhaustive()
     }
 }

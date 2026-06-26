@@ -26,13 +26,13 @@ impl RawApi {
     {
         let value = serde_json::to_value(params)
             .map_err(|error| crate::Error::Serialization(error.to_string()))?;
-        let result = self.client.call_value(method, Some(value)).await?;
+        let result = self.client.call_raw_value(method, Some(value)).await?;
         serde_json::from_value(result)
             .map_err(|error| crate::Error::Deserialization(error.to_string()))
     }
 
     /// Calls a method and returns its untyped JSON result.
     pub async fn call_value(&self, method: &str, params: Option<Value>) -> Result<Value> {
-        self.client.call_value(method, params).await
+        self.client.call_raw_value(method, params).await
     }
 }

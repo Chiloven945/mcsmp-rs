@@ -1,6 +1,7 @@
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::discovery::Feature;
 use crate::RequestId;
 
 /// The result type used by this crate.
@@ -75,6 +76,21 @@ pub enum Error {
     /// JSON deserialization failed while decoding a response into a caller type.
     #[error("JSON deserialization failed: {0}")]
     Deserialization(String),
+
+    /// Strict compatibility mode requires `rpc.discover` before method calls.
+    #[error("strict compatibility mode requires calling Client::discover() first")]
+    DiscoveryRequired,
+
+    /// The discovered server schema does not advertise a requested method.
+    #[error("server does not advertise JSON-RPC method `{method}`")]
+    UnsupportedMethod {
+        /// Full JSON-RPC method name rejected by strict compatibility mode.
+        method: String,
+    },
+
+    /// The discovered server schema does not imply a requested optional feature.
+    #[error("server does not support MCSMP feature {0:?}")]
+    UnsupportedFeature(Feature),
 
     /// The server returned a JSON-RPC error object.
     #[error(transparent)]

@@ -2,10 +2,10 @@
 //! Management Protocol (MCSMP).
 //!
 //! The crate uses a single TLS-capable WebSocket connection with multiplexed
-//! JSON-RPC 2.0 calls. Milestone 2 provides strong types and official API
-//! groups for allowlists, player and IP bans, players, operators, and server
-//! lifecycle or messaging operations. Use [`RawApi`] for extension namespaces
-//! and protocol features not yet covered by a typed API.
+//! JSON-RPC 2.0 calls. It provides strong types for the official MCSMP API,
+//! runtime capability discovery, and compatibility policies for servers that
+//! implement different protocol generations. Use [`RawApi`] for extension
+//! namespaces and protocol features not yet covered by a typed API.
 //!
 //! # Example
 //!
@@ -37,6 +37,10 @@
 
 /// Strongly typed official MCSMP API handles.
 pub mod api;
+/// Compatibility policies for capability-aware method invocation.
+pub mod compatibility;
+/// Capability discovery and MCSMP protocol-version models.
+pub mod discovery;
 /// Strongly typed MCSMP request and response models.
 pub mod model;
 
@@ -46,12 +50,18 @@ mod error;
 mod raw;
 mod transport;
 
-pub use api::{AllowlistApi, BansApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi};
+pub use api::{
+    AllowlistApi, BansApi, GamerulesApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi,
+    ServerSettingsApi,
+};
 pub use auth::{Auth, Secret};
 pub use client::{Client, ClientBuilder, ConnectionState, Notification, RequestId};
+pub use compatibility::CompatibilityMode;
+pub use discovery::{Capabilities, Feature, ProtocolVersion, ProtocolVersionParseError};
 pub use error::{Error, RemoteError, Result};
 pub use model::{
-    IncomingIpBan, IpBan, KickPlayer, Message, MinecraftVersion, ModelError, Operator, PlayerRef,
-    ServerState, SystemMessage, UserBan,
+    Difficulty, GameMode, GameRuleKind, GameRuleType, GameRuleValue, IncomingIpBan, IpBan,
+    KickPlayer, Message, MinecraftVersion, ModelError, Operator, PlayerRef, ServerState,
+    SystemMessage, TypedGameRule, UntypedGameRule, UserBan,
 };
 pub use raw::RawApi;

@@ -6,17 +6,21 @@
 
 mod allowlist;
 mod bans;
+mod gamerules;
 mod ip_bans;
 mod operators;
 mod players;
 mod server;
+mod server_settings;
 
 pub use allowlist::AllowlistApi;
 pub use bans::BansApi;
+pub use gamerules::GamerulesApi;
 pub use ip_bans::IpBansApi;
 pub use operators::OperatorsApi;
 pub use players::PlayersApi;
 pub use server::ServerApi;
+pub use server_settings::ServerSettingsApi;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -28,7 +32,7 @@ pub(crate) async fn call<T>(client: &Client, method: &str, params: Option<Value>
 where
     T: DeserializeOwned,
 {
-    let result = client.call_value(method, params).await?;
+    let result = client.call_typed_value(method, params).await?;
     serde_json::from_value(result).map_err(|error| Error::Deserialization(error.to_string()))
 }
 

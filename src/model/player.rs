@@ -27,6 +27,14 @@ pub enum ModelError {
     /// An IP-ban request omitted both a direct IP address and player selector.
     #[error("an incoming IP ban requires an ip address, a player selector, or both")]
     MissingIpBanTarget,
+    /// A native gamerule scalar did not match the server-declared gamerule kind.
+    #[error("gamerule value type mismatch: expected {expected}, got {actual}")]
+    GameRuleTypeMismatch {
+        /// Type required by the gamerule declaration.
+        expected: &'static str,
+        /// Type supplied by the gamerule value.
+        actual: &'static str,
+    },
 }
 
 /// A player selector accepted by MCSMP requests and returned by server

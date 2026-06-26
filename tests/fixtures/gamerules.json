@@ -1,0 +1,17 @@
+[
+  {
+    "key": "doDaylightCycle",
+    "type": "boolean",
+    "value": true
+  },
+  {
+    "key": "randomTickSpeed",
+    "type": "integer",
+    "value": 3
+  },
+  {
+    "key": "legacyCounter",
+    "type": "integer",
+    "value": "12"
+  }
+]
