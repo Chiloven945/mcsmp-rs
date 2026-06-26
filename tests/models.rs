@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 #[test]
 fn deserializes_server_status_fixture() {
-    let state: ServerState = serde_json::from_str(include_str!("fixtures/server_status.json"))
+    let state: ServerState = serde_json::from_str(include_str!("fixtures/model/server_state.json"))
         .expect("fixture must decode");
 
     assert!(state.started);
@@ -19,7 +19,7 @@ fn deserializes_server_status_fixture() {
 
 #[test]
 fn ban_fixture_uses_protocol_field_names() {
-    let fixture: Value = serde_json::from_str(include_str!("fixtures/ban_entries.json"))
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/model/bans.json"))
         .expect("fixture must be valid JSON");
     let user: UserBan = serde_json::from_value(fixture["user"].clone()).expect("user ban");
     let ip: IpBan = serde_json::from_value(fixture["ip"].clone()).expect("ip ban");
@@ -39,9 +39,8 @@ fn ban_fixture_uses_protocol_field_names() {
 
 #[test]
 fn translatable_message_precedes_literal_fallback() {
-    let message: Message =
-        serde_json::from_str(include_str!("fixtures/message_with_fallback.json"))
-            .expect("fixture must decode");
+    let message: Message = serde_json::from_str(include_str!("fixtures/model/messages.json"))
+        .expect("fixture must decode");
 
     assert_eq!(message.translation_key(), Some("chat.type.announcement"));
     assert_eq!(message.literal_text(), None);

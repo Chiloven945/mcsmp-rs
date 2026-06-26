@@ -12,7 +12,7 @@ mod server;
 mod settings;
 
 pub use ban::{IncomingIpBan, IpBan, UserBan};
-pub use gamerule::{GameRuleKind, GameRuleType, GameRuleValue, TypedGameRule, UntypedGameRule};
+pub use gamerule::{GameRuleKind, GameRuleValue, TypedGameRule, UntypedGameRule};
 pub use message::{KickPlayer, Message, SystemMessage};
 pub use player::{ModelError, PlayerRef};
 pub use server::{MinecraftVersion, Operator, ServerState};

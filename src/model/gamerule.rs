@@ -16,10 +16,6 @@ pub enum GameRuleKind {
     Boolean,
 }
 
-/// Alias for [`GameRuleKind`] retained for APIs that use the protocol's `type`
-/// terminology.
-pub type GameRuleType = GameRuleKind;
-
 /// A scalar gamerule value compatible with both current and legacy MCSMP
 /// servers.
 ///

@@ -17,15 +17,15 @@ use crate::{Auth, Error, Result};
 /// The concrete websocket stream used by the Tokio runtime.
 pub(crate) type Socket = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
-/// Immutable connection details retained for automatic reconnection.
+/// Immutable handshake details retained for the initial connection and reconnect attempts.
 #[derive(Clone, Debug)]
-pub(crate) struct ReconnectConfig {
+pub(crate) struct WebSocketConfig {
     endpoint: Url,
     auth: Auth,
     origin: Option<String>,
 }
 
-impl ReconnectConfig {
+impl WebSocketConfig {
     pub(crate) fn new(endpoint: Url, auth: Auth, origin: Option<String>) -> Self {
         Self {
             endpoint,
@@ -68,7 +68,7 @@ impl ReconnectConfig {
 }
 
 /// Opens one authenticated WebSocket session.
-pub(crate) async fn open_socket(config: &ReconnectConfig) -> Result<Socket> {
+pub(crate) async fn open_socket(config: &WebSocketConfig) -> Result<Socket> {
     let request = config.handshake_request()?;
     let (socket, _) = connect_async(request).await.map_err(map_connect_error)?;
     Ok(socket)

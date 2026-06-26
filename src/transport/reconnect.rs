@@ -1,6 +1,13 @@
-//! Reconnection configuration for [`crate::Client`].
+//! Reconnection policy and supervisor for transport sessions.
 
+use std::sync::Arc;
 use std::time::Duration;
+
+use tokio::time::sleep;
+
+use crate::client::{Client, ConnectionState};
+use crate::transport::session::{start_session, SessionController};
+use crate::transport::websocket::open_socket;
 
 /// Controls whether and how a client reconnects after an unexpected WebSocket
 /// close or transport failure.
@@ -16,23 +23,14 @@ pub enum ReconnectPolicy {
     /// Do not reconnect automatically. This is the default.
     #[default]
     Never,
-
     /// Retry connections after a constant delay.
-    ///
-    /// `max_attempts: None` means retry forever. A configured value must be
-    /// greater than zero.
     Fixed {
         /// Delay before every reconnect attempt.
         delay: Duration,
         /// Maximum reconnect attempts after one disconnection.
         max_attempts: Option<usize>,
     },
-
     /// Retry connections using exponential backoff capped at `max_delay`.
-    ///
-    /// The first retry waits `initial_delay`; each subsequent retry doubles
-    /// the delay until it reaches `max_delay`. `max_attempts: None` means
-    /// retry forever. A configured value must be greater than zero.
     Exponential {
         /// Delay before the first reconnect attempt.
         initial_delay: Duration,
@@ -124,7 +122,6 @@ impl ReconnectPolicy {
                 if !allowed(*max_attempts, attempt) {
                     return None;
                 }
-
                 let exponent = attempt.saturating_sub(1).min(63) as u32;
                 let factor = 1_u32.checked_shl(exponent).unwrap_or(u32::MAX);
                 Some(initial_delay.saturating_mul(factor).min(*max_delay))
@@ -135,6 +132,57 @@ impl ReconnectPolicy {
 
 fn allowed(max_attempts: Option<usize>, attempt: usize) -> bool {
     max_attempts.is_none_or(|maximum| attempt <= maximum)
+}
+
+/// Starts at most one reconnect supervisor for `controller`.
+pub(crate) fn schedule(controller: &Arc<SessionController>) {
+    let mut task = controller
+        .reconnect_task
+        .lock()
+        .expect("reconnect task lock poisoned");
+    if task.as_ref().is_some_and(|task| !task.is_finished()) {
+        return;
+    }
+    let controller = Arc::clone(controller);
+    *task = Some(tokio::spawn(async move {
+        reconnect_loop(controller).await;
+    }));
+}
+
+async fn reconnect_loop(controller: Arc<SessionController>) {
+    let mut attempt = 1_usize;
+    loop {
+        if controller.shutdown_requested() {
+            return;
+        }
+        let Some(delay) = controller.reconnect_policy().delay_for_attempt(attempt) else {
+            controller.finish_reconnect_failure();
+            return;
+        };
+        sleep(delay).await;
+        if controller.shutdown_requested() {
+            return;
+        }
+
+        match open_socket(controller.websocket_config()).await {
+            Ok(socket) => {
+                if controller.shutdown_requested() {
+                    return;
+                }
+                controller.clear_capabilities();
+                start_session(&controller, socket);
+
+                // Discovery refreshes the cache for the new server session. It is
+                // intentionally never a replay of calls that failed before reconnect.
+                let client = Client::from_controller(Arc::clone(&controller));
+                if client.discover().await.is_ok() || client.state() == ConnectionState::Connected {
+                    return;
+                }
+                attempt = attempt.saturating_add(1);
+            }
+            Err(_) => attempt = attempt.saturating_add(1),
+        }
+    }
 }
 
 #[cfg(test)]

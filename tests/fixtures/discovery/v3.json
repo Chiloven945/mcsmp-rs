@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "3.1.0",
+  "methods": [
+    "rpc.discover",
+    "minecraft:server/status"
+  ],
+  "notifications": [
+    "minecraft:notification/server/activity",
+    "minecraft:notification/world/upgrade_started"
+  ]
+}

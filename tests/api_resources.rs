@@ -78,7 +78,7 @@ fn result_for(method: &str) -> Value {
 }
 
 #[tokio::test]
-async fn typed_api_maps_all_milestone_two_endpoints_and_payloads() {
+async fn typed_resource_api_maps_official_endpoints_and_payloads() {
     const REQUEST_COUNT: usize = 26;
     let (url, server) = start_mock_server(REQUEST_COUNT).await;
     let client = Client::builder(url)

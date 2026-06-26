@@ -1,0 +1,7 @@
+{
+  "jsonrpc": "2.0",
+  "method": "minecraft:notification/world/upgrade_progress",
+  "params": {
+    "progress": 0.5
+  }
+}

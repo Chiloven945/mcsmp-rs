@@ -1,8 +1,8 @@
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::discovery::Feature;
-use crate::RequestId;
+use crate::capability::Feature;
+use crate::transport::RequestId;
 
 /// The result type used by this crate.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

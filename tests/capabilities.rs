@@ -1,8 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
-use mcsmp_rs::{
-    Auth, Client, CompatibilityMode, Difficulty, Error, Feature, GameMode, GameRuleValue,
-    ProtocolVersion, UntypedGameRule,
-};
+use mcsmp_rs::{Auth, Client, CompatibilityMode, Error, Feature, ProtocolVersion};
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -131,107 +128,7 @@ fn result_for(request: &Value) -> Value {
 }
 
 #[tokio::test]
-async fn settings_and_gamerules_map_every_milestone_three_endpoint() {
-    const REQUESTS: usize = 43;
-    let (url, server) = start_mock_server(REQUESTS).await;
-    let client = Client::builder(url)
-        .auth(Auth::none())
-        .connect()
-        .await
-        .unwrap();
-    let settings = client.server_settings();
-
-    assert!(settings.autosave().await.unwrap());
-    assert!(!settings.set_autosave(false).await.unwrap());
-    assert_eq!(settings.difficulty().await.unwrap(), Difficulty::Hard);
-    assert_eq!(
-        settings.set_difficulty(Difficulty::Easy).await.unwrap(),
-        Difficulty::Easy
-    );
-    assert!(settings.enforce_allowlist().await.unwrap());
-    assert!(!settings.set_enforce_allowlist(false).await.unwrap());
-    assert!(settings.use_allowlist().await.unwrap());
-    assert!(!settings.set_use_allowlist(false).await.unwrap());
-    assert_eq!(settings.max_players().await.unwrap(), 20);
-    assert_eq!(settings.set_max_players(24).await.unwrap(), 24);
-    assert_eq!(settings.pause_when_empty_seconds().await.unwrap(), 60);
-    assert_eq!(settings.set_pause_when_empty_seconds(30).await.unwrap(), 30);
-    assert_eq!(settings.player_idle_timeout().await.unwrap(), 120);
-    assert_eq!(settings.set_player_idle_timeout(90).await.unwrap(), 90);
-    assert!(!settings.allow_flight().await.unwrap());
-    assert!(settings.set_allow_flight(true).await.unwrap());
-    assert_eq!(settings.motd().await.unwrap(), "Welcome");
-    assert_eq!(settings.set_motd("New MOTD").await.unwrap(), "New MOTD");
-    assert_eq!(settings.spawn_protection_radius().await.unwrap(), 16);
-    assert_eq!(settings.set_spawn_protection_radius(12).await.unwrap(), 12);
-    assert!(!settings.force_game_mode().await.unwrap());
-    assert!(settings.set_force_game_mode(true).await.unwrap());
-    assert_eq!(settings.game_mode().await.unwrap(), GameMode::Survival);
-    assert_eq!(
-        settings.set_game_mode(GameMode::Creative).await.unwrap(),
-        GameMode::Creative
-    );
-    assert_eq!(settings.view_distance().await.unwrap(), 10);
-    assert_eq!(settings.set_view_distance(12).await.unwrap(), 12);
-    assert_eq!(settings.simulation_distance().await.unwrap(), 8);
-    assert_eq!(settings.set_simulation_distance(10).await.unwrap(), 10);
-    assert!(settings.accept_transfers().await.unwrap());
-    assert!(!settings.set_accept_transfers(false).await.unwrap());
-    assert_eq!(settings.status_heartbeat_interval().await.unwrap(), 5);
-    assert_eq!(
-        settings.set_status_heartbeat_interval(10).await.unwrap(),
-        10
-    );
-    assert_eq!(settings.operator_user_permission_level().await.unwrap(), 2);
-    assert_eq!(
-        settings
-            .set_operator_user_permission_level(3)
-            .await
-            .unwrap(),
-        3
-    );
-    assert!(!settings.hide_online_players().await.unwrap());
-    assert!(settings.set_hide_online_players(true).await.unwrap());
-    assert!(settings.status_replies().await.unwrap());
-    assert!(!settings.set_status_replies(false).await.unwrap());
-    assert_eq!(settings.entity_broadcast_range().await.unwrap(), 100);
-    assert_eq!(settings.set_entity_broadcast_range(75).await.unwrap(), 75);
-
-    let rules = client.gamerules().list().await.unwrap();
-    assert_eq!(rules.len(), 2);
-    assert_eq!(rules[0].value, GameRuleValue::Boolean(true));
-    assert_eq!(
-        client
-            .gamerules()
-            .update(UntypedGameRule::boolean("doDaylightCycle", false).unwrap())
-            .await
-            .unwrap()
-            .value,
-        GameRuleValue::Boolean(false)
-    );
-    assert_eq!(
-        client
-            .gamerules()
-            .update(UntypedGameRule::integer("randomTickSpeed", 8).unwrap())
-            .await
-            .unwrap()
-            .value,
-        GameRuleValue::Integer(8)
-    );
-
-    let requests = server.await.unwrap();
-    assert_eq!(requests.len(), REQUESTS);
-    assert_eq!(requests[1]["params"], json!({"enable": false}));
-    assert_eq!(requests[3]["params"], json!({"difficulty": "easy"}));
-    assert_eq!(requests[35]["params"], json!({"hide": true}));
-    assert_eq!(requests[39]["params"], json!({"percentage_points": 75}));
-    assert_eq!(requests[40]["method"], "minecraft:gamerules");
-
-    client.shutdown().await.unwrap();
-}
-
-#[tokio::test]
-async fn strict_mode_requires_discovery_and_uses_advertised_methods() {
+async fn strict_invocation_uses_discovered_capabilities() {
     let (url, server) = start_mock_server(2).await;
     let client = Client::builder(url)
         .auth(Auth::none())

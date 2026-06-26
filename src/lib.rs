@@ -1,11 +1,9 @@
-//! `mcsmp-rs` is an asynchronous Rust client for the Minecraft Server
-//! Management Protocol (MCSMP).
+//! Asynchronous Rust client for the Minecraft Server Management Protocol.
 //!
-//! The crate uses a single TLS-capable WebSocket connection with multiplexed
-//! JSON-RPC 2.0 calls. It provides strong types for the official MCSMP API,
-//! runtime capability discovery, and compatibility policies for servers that
-//! implement different protocol generations. Use [`RawApi`] for extension
-//! namespaces and protocol features not yet covered by a typed API.
+//! `mcsmp-rs` uses one TLS-capable WebSocket session with multiplexed JSON-RPC
+//! 2.0 calls. The public surface is organized around typed resource APIs,
+//! capability discovery, and asynchronous notifications. Use [`RawApi`] for
+//! extension namespaces that do not yet have a typed handle.
 //!
 //! # Example
 //!
@@ -21,12 +19,7 @@
 //!
 //! let status = client.server().status().await?;
 //! println!("{} players online", status.online_player_count());
-//!
-//! client
-//!     .allowlist()
-//!     .add([PlayerRef::by_name("Alex")?])
-//!     .await?;
-//!
+//! client.allowlist().add([PlayerRef::by_name("Alex")?]).await?;
 //! client.shutdown().await?;
 //! # Ok(())
 //! # }
@@ -35,41 +28,35 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-/// Strongly typed official MCSMP API handles.
+/// Typed official MCSMP resource APIs.
 pub mod api;
-/// Compatibility policies for capability-aware method invocation.
-pub mod compatibility;
-/// Capability discovery and MCSMP protocol-version models.
-pub mod discovery;
-/// Strongly typed MCSMP notifications and asynchronous event streams.
-pub mod event;
+/// Capability discovery, protocol versions, and invocation policy.
+pub mod capability;
+/// Client construction and connection state.
+pub mod client;
+/// Typed notifications and event streams.
+pub mod events;
 /// Strongly typed MCSMP request and response models.
 pub mod model;
-/// Automatic reconnection policy configuration.
-pub mod reconnect;
 
 mod auth;
-mod client;
-mod connection;
 mod error;
-mod raw;
-mod runtime;
 mod transport;
 
 pub use api::{
-    AllowlistApi, BansApi, GamerulesApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi,
+    AllowlistApi, BansApi, GamerulesApi, IpBansApi, OperatorsApi, PlayersApi, RawApi, ServerApi,
     ServerSettingsApi,
 };
 pub use auth::{Auth, Secret};
-pub use client::{Client, ClientBuilder, ConnectionState, Notification, RequestId};
-pub use compatibility::CompatibilityMode;
-pub use discovery::{Capabilities, Feature, ProtocolVersion, ProtocolVersionParseError};
-pub use error::{Error, RemoteError, Result};
-pub use event::{Event, EventStream, EventStreamError, RawNotification};
-pub use model::{
-    Difficulty, GameMode, GameRuleKind, GameRuleType, GameRuleValue, IncomingIpBan, IpBan,
-    KickPlayer, Message, MinecraftVersion, ModelError, Operator, PlayerRef, ServerState,
-    SystemMessage, TypedGameRule, UntypedGameRule, UserBan,
+pub use capability::{
+    Capabilities, CompatibilityMode, Feature, ProtocolVersion, ProtocolVersionParseError,
 };
-pub use raw::RawApi;
-pub use reconnect::ReconnectPolicy;
+pub use client::{Client, ClientBuilder, ConnectionState};
+pub use error::{Error, RemoteError, Result};
+pub use events::{Event, EventStream, EventStreamError, RawNotification};
+pub use model::{
+    Difficulty, GameMode, GameRuleKind, GameRuleValue, IncomingIpBan, IpBan, KickPlayer, Message,
+    MinecraftVersion, ModelError, Operator, PlayerRef, ServerState, SystemMessage, TypedGameRule,
+    UntypedGameRule, UserBan,
+};
+pub use transport::{ReconnectPolicy, RequestId};

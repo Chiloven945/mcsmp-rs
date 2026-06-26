@@ -1,8 +1,7 @@
 //! Strongly typed official MCSMP API groups.
 //!
-//! Every API handle is inexpensive to clone because it holds a clone of the
-//! underlying [`crate::Client`]. Handles issue requests over the same
-//! multiplexed WebSocket connection.
+//! Every handle is inexpensive to clone because it holds a clone of the
+//! underlying [`crate::Client`].
 
 mod allowlist;
 mod bans;
@@ -10,6 +9,7 @@ mod gamerules;
 mod ip_bans;
 mod operators;
 mod players;
+mod raw;
 mod server;
 mod server_settings;
 
@@ -19,6 +19,7 @@ pub use gamerules::GamerulesApi;
 pub use ip_bans::IpBansApi;
 pub use operators::OperatorsApi;
 pub use players::PlayersApi;
+pub use raw::RawApi;
 pub use server::ServerApi;
 pub use server_settings::ServerSettingsApi;
 
