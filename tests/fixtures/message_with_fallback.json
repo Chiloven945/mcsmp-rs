@@ -1,0 +1,8 @@
+{
+  "translatable": "chat.type.announcement",
+  "translatableParams": [
+    "Server",
+    "Restarting"
+  ],
+  "literal": "Fallback text"
+}

@@ -17,6 +17,7 @@ use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::{Error as WebSocketError, Message};
 use url::Url;
 
+use crate::api::{AllowlistApi, BansApi, IpBansApi, OperatorsApi, PlayersApi, ServerApi};
 use crate::transport::{parse_inbound, serialize_request, Inbound, OutboundRequest};
 use crate::{Auth, Error, RawApi, Result};
 
@@ -269,6 +270,36 @@ impl Client {
     /// Returns an untyped JSON-RPC API for MCSMP and extension namespaces.
     pub fn raw(&self) -> RawApi {
         RawApi::new(self.clone())
+    }
+
+    /// Returns strongly typed allowlist operations.
+    pub fn allowlist(&self) -> AllowlistApi {
+        AllowlistApi::new(self.clone())
+    }
+
+    /// Returns strongly typed user-ban operations.
+    pub fn bans(&self) -> BansApi {
+        BansApi::new(self.clone())
+    }
+
+    /// Returns strongly typed IP-ban operations.
+    pub fn ip_bans(&self) -> IpBansApi {
+        IpBansApi::new(self.clone())
+    }
+
+    /// Returns strongly typed connected-player operations.
+    pub fn players(&self) -> PlayersApi {
+        PlayersApi::new(self.clone())
+    }
+
+    /// Returns strongly typed operator-list operations.
+    pub fn operators(&self) -> OperatorsApi {
+        OperatorsApi::new(self.clone())
+    }
+
+    /// Returns strongly typed server lifecycle and messaging operations.
+    pub fn server(&self) -> ServerApi {
+        ServerApi::new(self.clone())
     }
 
     /// Closes the socket, stops background tasks, and fails outstanding calls.

@@ -1,0 +1,22 @@
+{
+  "user": {
+    "player": {
+      "name": "Alex"
+    },
+    "reason": "Repeated griefing",
+    "source": "Console",
+    "expires": "2030-01-02T03:04:05Z"
+  },
+  "ip": {
+    "ip": "203.0.113.8",
+    "reason": "Abuse",
+    "source": "Console"
+  },
+  "operator": {
+    "player": {
+      "name": "Steve"
+    },
+    "permissionLevel": 4,
+    "bypassesPlayerLimit": true
+  }
+}
