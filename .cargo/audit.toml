@@ -1,0 +1,10 @@
+# cargo-audit configuration for local checks and the Security workflow.
+
+[advisories]
+# webpki-roots 0.26.11 is a semver shim that re-exports webpki-roots 1.0.10,
+# whose root set no longer includes the distrusted emSign root. The advisory
+# range only sees the shim's own version, so it cannot observe that the fixed
+# 1.0.10 implementation is what actually gets compiled. tokio-tungstenite 0.30
+# still depends on the 0.26 shim; remove this ignore once it depends on
+# webpki-roots 1.x directly.
+ignore = ["RUSTSEC-2026-0381"]

@@ -6,7 +6,12 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+ignore = [
+    {
+        id = "RUSTSEC-2026-0381",
+        reason = "webpki-roots 0.26.11 is a semver shim that re-exports webpki-roots 1.0.10, whose root set no longer includes the distrusted emSign root; tokio-tungstenite 0.30 still depends on the 0.26 shim."
+    },
+]
 
 [licenses]
 version = 2
@@ -14,6 +19,7 @@ confidence-threshold = 0.8
 allow = [
     "Apache-2.0",
     "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
     "ISC",
     "MIT",
     "MPL-2.0",

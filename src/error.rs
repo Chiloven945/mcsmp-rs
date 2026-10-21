@@ -1,5 +1,5 @@
 use serde_json::Value;
-use thiserror::Error;
+use thiserror::Error as ThisError;
 
 use crate::capability::Feature;
 use crate::transport::RequestId;
@@ -49,7 +49,7 @@ impl std::error::Error for RemoteError {}
 /// configuration, transport, parsing, timeout, discovery, and compatibility
 /// failures originate in the client. The enum is `non_exhaustive`; include a
 /// fallback arm when matching it outside this crate.
-#[derive(Clone, Debug, Error, PartialEq)]
+#[derive(Clone, Debug, ThisError, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
     /// A builder argument, secret, timeout, or reconnect policy was invalid.

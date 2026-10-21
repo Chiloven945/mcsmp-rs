@@ -33,7 +33,7 @@ safe reconnect behavior, and generic access to extension namespaces.
 
 ## Requirements
 
-- Rust **1.85** or newer.
+- Rust **1.99.1** or newer.
 - A Minecraft Java Edition dedicated server that exposes MCSMP.
 - Network access to the server's management host and port.
 - A configured management secret, unless the target endpoint deliberately
@@ -331,7 +331,7 @@ See [error handling](docs/error-handling.md) for a fuller recovery guide.
 
 ## Development
 
-The project requires Rust 1.85 or newer. Run all local quality gates before
+The project requires Rust 1.99.1 or newer. Run all local quality gates before
 opening a pull request:
 
 ```text

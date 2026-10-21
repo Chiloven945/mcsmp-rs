@@ -2,7 +2,7 @@
 name = "mcsmp-rs"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.99.1"
 description = "Async Rust client for the Minecraft Server Management Protocol (MCSMP)"
 license = "Apache-2.0"
 readme = "README.md"
@@ -16,12 +16,11 @@ include = [
     "/tests/**",
     "/examples/**",
     "/docs/**",
-    "/fuzz/**",
     "/README.md",
     "/CHANGELOG.md",
     "/CONTRIBUTING.md",
     "/SECURITY.md",
-    "/LICENSE-APACHE",
+    "/LICENSE",
     "/Cargo.toml",
 ]
 

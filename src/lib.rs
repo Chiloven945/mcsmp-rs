@@ -1,5 +1,5 @@
 //! # mcsmp-rs
-//! 
+//!
 //! Asynchronous Rust client for the Minecraft Server Management Protocol (MCSMP).
 //!
 //! `mcsmp-rs` is a Tokio-based client for the management WebSocket exposed by
@@ -219,6 +219,8 @@ pub use model::SystemMessage;
 pub use model::TypedGameRule;
 /// Gamerule update request without a declared kind.
 pub use model::UntypedGameRule;
+/// Resolved permanent user (profile) ban entry.
+pub use model::UserBan;
 
 /// Automatic reconnect behavior after an unexpected session interruption.
 pub use transport::ReconnectPolicy;
