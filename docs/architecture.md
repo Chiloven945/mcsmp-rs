@@ -109,8 +109,8 @@ without losing the entire connection.
 ## Security boundaries
 
 The JSON-RPC parser treats inbound text as untrusted. Malformed frames are
-reported as protocol errors and must not panic the process. Tests and the local
-fuzz target cover this boundary.
+reported as protocol errors and must not panic the process. Regression tests
+cover this boundary.
 
 Secrets are validated for header safety and redacted in `Debug` output. TLS
 certificate and hostname validation are left enabled for `wss://` connections;

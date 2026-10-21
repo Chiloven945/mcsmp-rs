@@ -226,16 +226,3 @@ pub use model::UserBan;
 pub use transport::ReconnectPolicy;
 /// Client-generated identifier assigned to one JSON-RPC request.
 pub use transport::RequestId;
-
-/// Fuzzing-only entry points used by the repository's local `cargo-fuzz`
-/// targets. This module is hidden from generated documentation and is not part
-/// of the supported downstream API.
-#[cfg(feature = "fuzzing")]
-#[doc(hidden)]
-pub mod fuzzing {
-    /// Parses untrusted inbound JSON-RPC text and deliberately ignores the
-    /// result. Fuzz targets assert that this operation never panics.
-    pub fn parse_inbound_jsonrpc(input: &str) {
-        let _ = crate::transport::fuzz_parse_inbound(input);
-    }
-}

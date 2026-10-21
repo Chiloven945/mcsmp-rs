@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-Before the first release, security fixes are applied to the default development
-branch. Published release support windows and backport policy will be listed
-here once stable versions exist.
+The `0.1.x` series receives security fixes on the default development branch.
+Published release support windows and a backport policy will be documented once
+the crate reaches `1.0.0`.
 
 ## Security model
 
@@ -22,7 +22,7 @@ The library's security-oriented behavior includes:
 - normal TLS certificate and hostname validation for `wss://` URLs;
 - no public "accept any certificate" bypass;
 - no automatic replay of management requests after disconnection; and
-- parser and fuzz coverage for untrusted inbound JSON-RPC frames.
+- parser regression coverage for untrusted inbound JSON-RPC frames.
 
 These properties do not eliminate the need for secure server configuration,
 network isolation, access control, logging hygiene, and dependency updates.

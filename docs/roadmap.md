@@ -80,7 +80,6 @@ Implemented:
 - GitHub Actions for formatting, Clippy, tests, documentation, MSRV, audit, and
   dependency policy;
 - Cargo Deny policy and Cargo Audit workflow;
-- JSON-RPC parser fuzz target;
 - README, server configuration, architecture, compatibility, testing, API, and
   error-handling documentation.
 

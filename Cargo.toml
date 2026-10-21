@@ -24,12 +24,6 @@ include = [
     "/Cargo.toml",
 ]
 
-[features]
-default = []
-# Enables a deliberately small, doc-hidden parser entry point for the local
-# cargo-fuzz target. This feature is not needed by downstream users.
-fuzzing = []
-
 [dependencies]
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
@@ -39,8 +33,6 @@ tokio = { version = "1", features = ["macros", "net", "rt", "rt-multi-thread", "
 tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
 url = "2"
 uuid = { version = "1", features = ["serde"] }
-
-[dev-dependencies]
 
 [package.metadata.docs.rs]
 all-features = true

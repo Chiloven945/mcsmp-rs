@@ -7,6 +7,8 @@ pre-release software; its API may change before the first stable release.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-21
+
 ### Added
 
 - Asynchronous Tokio client for the Minecraft Server Management Protocol (MCSMP) over a single
@@ -32,4 +34,5 @@ pre-release software; its API may change before the first stable release.
   `webpki-roots 1.0.10` root set.
 - Corrected the MSRV to Rust 1.99.1 and aligned CI and documentation.
 
-[Unreleased]: https://github.com/Chiloven945/mcsmp-rs/commits/master
+[Unreleased]: https://github.com/Chiloven945/mcsmp-rs/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Chiloven945/mcsmp-rs/releases/tag/v0.1.0

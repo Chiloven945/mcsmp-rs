@@ -28,7 +28,6 @@ async Rust applications while preserving protocol details that matter for server
 - `src/transport`: private JSON-RPC, WebSocket, session, request, and reconnect implementation.
 - `tests/fixtures`: protocol JSON organized by models, discovery, notifications, and JSON-RPC.
 - `docs`: user and maintainer documentation.
-- `fuzz`: parser fuzz targets.
 
 Do not introduce development-phase names such as `milestone_four.rs` for long-lived source or test
 files. Name files for their protocol concern or observable behavior.
@@ -88,15 +87,4 @@ Keep dependencies minimal and intentional. When adding or updating a root depend
 `cargo audit`. Do not add advisories or license exceptions without a documented reason and removal
 condition.
 
-## Fuzz regressions
-
-The inbound JSON-RPC parser handles untrusted network input. When fuzzing finds a panic or
-pathological input:
-
-1. reduce it to the smallest deterministic example;
-2. add it as a test or fixture first;
-3. fix the parser so it returns an error or a raw/unknown event instead of panicking; and
-4. retain the fuzz corpus entry when it adds coverage.
-
-See [testing and quality gates](docs/testing.md) and
-[`fuzz/README.md`](fuzz/README.md) for more detail.
+See [testing and quality gates](docs/testing.md) for more detail.

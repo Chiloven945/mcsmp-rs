@@ -343,9 +343,6 @@ cargo deny check
 cargo audit
 ```
 
-The repository also contains a JSON-RPC parser fuzz target; see
-[`fuzz/README.md`](fuzz/README.md).
-
 ## License
 
 Licensed under [Apache-2.0](LICENSE).

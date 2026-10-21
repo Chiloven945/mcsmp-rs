@@ -28,9 +28,3 @@ Fixtures are grouped by protocol concern:
 - `tests/fixtures/notifications`: legacy/current notification names and preview
   world-upgrade events.
 - `tests/fixtures/jsonrpc`: valid, remote-error, and malformed JSON-RPC frames.
-
-## Fuzzing
-
-The `jsonrpc_inbound` target feeds arbitrary bytes into the inbound JSON-RPC
-parser. A valid parser result is not required; the property under test is that
-untrusted inbound data never causes a panic. See [`../fuzz/README.md`](../fuzz/README.md).
